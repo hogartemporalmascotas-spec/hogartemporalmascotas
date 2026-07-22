@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mascotas a Salvo — Atacama / Coquimbo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg: #F5F2EC;
+    --ink: #1C2B2A;
+    --ink-soft: #4A5957;
+    --teal: #2B6E6A;
+    --teal-dark: #1E4E4B;
+    --brick: #B8412B;
+    --brick-soft: #F3DFD8;
+    --moss: #4C7A3F;
+    --moss-soft: #E1EBDA;
+    --paper: #FFFFFF;
+    --line: #E1DBCC;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: var(--bg); font-family:'Inter', sans-serif;
+    color: var(--ink); display:flex; justify-content:center; padding: 32px 16px 60px;
+  }
+  .stage{ width:100%; max-width: 460px; }
+  .stage-head{ text-align:center; margin-bottom:20px; }
+  .stage-head h1{ font-family:'Fraunces', serif; font-weight:600; font-size:22px; margin:0 0 6px; }
+  .stage-head .stage-desc{ font-size:13px; color: var(--ink-soft); line-height:1.5; margin: 0 0 10px; max-width: 380px; margin-left:auto; margin-right:auto; }
+  .stage-head .loc{
+    font-family:'Space Grotesk', sans-serif; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color: var(--teal-dark); background: var(--moss-soft); padding:5px 10px; border-radius:20px;
+  }
+  .tabs{ display:flex; gap:8px; margin-bottom:18px; justify-content:center; }
+  .tab{
+    font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600; padding:9px 16px;
+    border-radius:8px; border:1px solid var(--line); background: var(--paper); color: var(--ink-soft); cursor:pointer;
+  }
+  .tab.active{ background: var(--teal); border-color: var(--teal); color:#fff; }
+  .frame{
+    background: var(--paper); border-radius: 20px; border: 1px solid var(--line);
+    box-shadow: 0 20px 50px -25px rgba(28,43,42,0.35); overflow:hidden;
+  }
+  .screen{ display:none; }
+  .screen.active{ display:block; }
+  .app-bar{ background: var(--teal-dark); color:#fff; padding:16px 20px 14px; }
+  .app-bar .brand{ font-family:'Fraunces', serif; font-size:18px; font-weight:600; }
+  .app-bar .sub{ font-family:'Space Grotesk', sans-serif; font-size:11px; text-transform:uppercase; color: rgba(255,255,255,.65); margin-top:3px; }
+  .body-pad{ padding: 20px; }
+  .field{ margin-bottom:14px; }
+  .field label{ display:block; font-family:'Space Grotesk', sans-serif; font-size:11px; font-weight:600; text-transform:uppercase; color: var(--ink-soft); margin-bottom:6px; }
+  .field input, .field select, .field textarea{
+    width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; color: var(--ink); background:#fff; font-family:'Inter', sans-serif;
+  }
+  .field textarea{ resize:none; min-height:60px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .check-row{ display:flex; align-items:center; gap:8px; font-size:13px; margin-bottom:14px; }
+  .btn-primary{
+    width:100%; padding:14px; border:none; border-radius:12px; background: var(--brick); color:#fff;
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14px; cursor:pointer; margin-top:6px;
+  }
+  .btn-primary:disabled{ opacity:.6; cursor:not-allowed; }
+  .msg{ font-size:13px; text-align:center; margin-top:12px; line-height:1.5; }
+  .msg.ok{ color: var(--moss); }
+  .msg.err{ color: var(--brick); }
+
+  .tag-card{ position:relative; border-radius:16px; border:1px solid var(--line); overflow:hidden; margin: 0 0 18px; }
+  .tag-photo{
+    height:190px; background: linear-gradient(135deg, #E7DFC8, #CFE0D6);
+    display:flex; align-items:center; justify-content:center; font-size:44px; background-size:cover; background-position:center;
+  }
+  .tag-info{ padding:14px 16px 16px; }
+  .tag-name-row{ display:flex; align-items:baseline; justify-content:space-between; }
+  .tag-name{ font-family:'Fraunces', serif; font-size:20px; font-weight:600; }
+  .tag-badge{ font-family:'Space Grotesk', sans-serif; font-size:11px; font-weight:600; padding:4px 9px; border-radius:20px; background: var(--brick-soft); color: var(--brick); }
+  .tag-meta{ font-size:12.5px; color: var(--ink-soft); margin-top:4px; }
+  .tag-desc{ font-size:13px; line-height:1.5; margin-top:8px; }
+  .tag-facts{ display:flex; gap:6px; flex-wrap:wrap; margin-top:10px; }
+  .tag-facts-list{ margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
+  .fact-row{ display:flex; justify-content:space-between; gap:12px; padding:6px 0; border-bottom:1px dashed var(--line); font-size:13px; }
+  .fact-row:last-child{ border-bottom:none; }
+  .fact-label{ font-family:'Space Grotesk', sans-serif; font-size:11px; font-weight:600; text-transform:uppercase; color: var(--ink-soft); white-space:nowrap; }
+  .fact-value{ text-align:right; color: var(--ink); }
+  .fact{ font-size:11px; font-family:'Space Grotesk', sans-serif; padding:4px 9px; border-radius:8px; background: #F5F2EC; color: var(--ink-soft); }
+  .swipe-actions{ display:flex; gap:14px; justify-content:center; margin-top:16px; }
+  .round-btn{
+    width:52px; height:52px; border-radius:50%; border:1px solid var(--line); background:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:20px; cursor:pointer;
+  }
+  .round-btn.yes{ background: var(--teal); border-color: var(--teal); color:#fff; }
+  .empty-state{ text-align:center; padding:40px 20px; color: var(--ink-soft); font-size:13px; }
+  .anfitrion-gate{ padding:20px; }
+  .caption{ text-align:center; font-size:11px; color: var(--ink-soft); margin-top:14px; font-family:'Space Grotesk', sans-serif; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="stage-head">
+    <h1>Mascotas a Salvo</h1>
+    <p class="stage-desc">Conecta mascotas afectadas por la emergencia en Atacama y Coquimbo con familias dispuestas a brindar refugio temporal</p>
+    <span class="loc">Atacama (Huasco) · Región de Coquimbo · Emergencia temporal</span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-screen="publicar">Publicar mascota</button>
+    <button class="tab" data-screen="buscar">Ofrecer hogar</button>
+  </div>
+
+  <div class="frame">
+
+    <div class="screen active" id="screen-publicar">
+      <div class="app-bar">
+        <div class="brand">Publicar mascota</div>
+        <div class="sub">Para familias que necesitan alojamiento temporal</div>
+      </div>
+      <div class="body-pad">
+        <form id="form-publicar">
+          <div class="field">
+            <label>Foto de la mascota</label>
+            <input type="file" id="foto" accept="image/*">
+          </div>
+          <div class="field">
+            <label>Nombre de la mascota</label>
+            <input type="text" id="nombre" required>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>Especie</label>
+              <select id="especie">
+                <option value="perro">Perro</option>
+                <option value="gato">Gato</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Tamaño</label>
+              <select id="tamano">
+                <option value="pequeno">Pequeño</option>
+                <option value="mediano">Mediano</option>
+                <option value="grande">Grande</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Edad aproximada</label>
+            <input type="text" id="edad_aprox" placeholder="ej: 4 años">
+          </div>
+          <div class="field">
+            <label>Temperamento</label>
+            <input type="text" id="temperamento" placeholder="ej: tranquilo, sociable">
+          </div>
+          <div class="field">
+            <label>Necesidades especiales</label>
+            <textarea id="necesidades_especiales" placeholder="medicamentos, alergias, cuidados..."></textarea>
+          </div>
+          <div class="field">
+            <label>Tiempo estimado de alojamiento</label>
+            <select id="duracion_estimada">
+              <option value="1-2 semanas">1–2 semanas</option>
+              <option value="2-4 semanas">2–4 semanas</option>
+              <option value="No lo sé aún">No lo sé aún</option>
+            </select>
+          </div>
+          <div class="row2">
+            <div class="field">
+              <label>Sector</label>
+              <input type="text" id="sector" required>
+            </div>
+            <div class="field">
+              <label>Comuna</label>
+              <select id="comuna">
+                <optgroup label="Provincia de Huasco (Atacama)">
+                  <option value="Vallenar">Vallenar</option>
+                  <option value="Alto del Carmen">Alto del Carmen</option>
+                  <option value="Freirina">Freirina</option>
+                  <option value="Huasco">Huasco</option>
+                </optgroup>
+                <optgroup label="Provincia de Elqui">
+                  <option value="La Serena">La Serena</option>
+                  <option value="Coquimbo">Coquimbo</option>
+                  <option value="Andacollo">Andacollo</option>
+                  <option value="Vicuña">Vicuña</option>
+                  <option value="Paihuano">Paihuano</option>
+                  <option value="La Higuera">La Higuera</option>
+                </optgroup>
+                <optgroup label="Provincia de Limarí">
+                  <option value="Ovalle">Ovalle</option>
+                  <option value="Monte Patria">Monte Patria</option>
+                  <option value="Punitaqui">Punitaqui</option>
+                  <option value="Combarbalá">Combarbalá</option>
+                  <option value="Río Hurtado">Río Hurtado</option>
+                </optgroup>
+                <optgroup label="Provincia de Choapa">
+                  <option value="Illapel">Illapel</option>
+                  <option value="Salamanca">Salamanca</option>
+                  <option value="Los Vilos">Los Vilos</option>
+                  <option value="Canela">Canela</option>
+                </optgroup>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Tu nombre</label>
+            <input type="text" id="dueno_nombre" required>
+          </div>
+          <div class="field">
+            <label>Tu correo de contacto</label>
+            <input type="email" id="dueno_email" required>
+          </div>
+          <div class="field">
+            <label>Tu teléfono de contacto</label>
+            <input type="text" id="dueno_telefono" required placeholder="+56 9 ...">
+          </div>
+          <button type="submit" class="btn-primary" id="btn-publicar">Publicar mascota</button>
+          <div class="msg" id="msg-publicar"></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="screen" id="screen-buscar">
+      <div class="app-bar">
+        <div class="brand">Ofrecer hogar temporal</div>
+        <div class="sub" id="buscar-sub">Mascotas esperando alojamiento</div>
+      </div>
+
+      <div class="anfitrion-gate" id="anfitrion-gate">
+        <p style="font-size:13px; color:var(--ink-soft); margin-top:0;">Antes de ver las mascotas, cuéntanos un poco de ti — así el dueño sabe con quién se contacta.</p>
+        <div class="field"><label>Tu nombre</label><input type="text" id="a_nombre" required></div>
+        <div class="field"><label>Tu teléfono</label><input type="text" id="a_telefono" required placeholder="+56 9 ..."></div>
+        <div class="field"><label>Tu correo</label><input type="email" id="a_email" required placeholder="tucorreo@gmail.com"></div>
+        <div class="row2">
+          <div class="field"><label>Sector</label><input type="text" id="a_sector" required></div>
+          <div class="field"><label>Comuna</label>
+            <select id="a_comuna">
+              <optgroup label="Provincia de Huasco (Atacama)">
+                <option value="Vallenar">Vallenar</option>
+                <option value="Alto del Carmen">Alto del Carmen</option>
+                <option value="Freirina">Freirina</option>
+                <option value="Huasco">Huasco</option>
+              </optgroup>
+              <optgroup label="Provincia de Elqui">
+                <option value="La Serena">La Serena</option>
+                <option value="Coquimbo">Coquimbo</option>
+                <option value="Andacollo">Andacollo</option>
+                <option value="Vicuña">Vicuña</option>
+                <option value="Paihuano">Paihuano</option>
+                <option value="La Higuera">La Higuera</option>
+              </optgroup>
+              <optgroup label="Provincia de Limarí">
+                <option value="Ovalle">Ovalle</option>
+                <option value="Monte Patria">Monte Patria</option>
+                <option value="Punitaqui">Punitaqui</option>
+                <option value="Combarbalá">Combarbalá</option>
+                <option value="Río Hurtado">Río Hurtado</option>
+              </optgroup>
+              <optgroup label="Provincia de Choapa">
+                <option value="Illapel">Illapel</option>
+                <option value="Salamanca">Salamanca</option>
+                <option value="Los Vilos">Los Vilos</option>
+                <option value="Canela">Canela</option>
+              </optgroup>
+            </select>
+          </div>
+        </div>
+        <div class="field"><label>Tipo de espacio</label>
+          <select id="a_tipo_espacio">
+            <option value="casa">Casa</option>
+            <option value="patio">Casa con patio</option>
+            <option value="depto">Departamento</option>
+          </select>
+        </div>
+        <div class="check-row"><input type="checkbox" id="a_otras_mascotas"> <label for="a_otras_mascotas" style="margin:0; text-transform:none; font-weight:400;">Tengo otras mascotas en casa</label></div>
+        <button class="btn-primary" id="btn-registrar-anfitrion">Empezar a ver mascotas</button>
+        <div class="msg" id="msg-anfitrion"></div>
+      </div>
+
+      <div class="body-pad" id="swipe-body" style="display:none;">
+        <div id="card-container"></div>
+        <div class="swipe-actions">
+          <div class="round-btn" id="btn-pasar">✕</div>
+          <div class="round-btn yes" id="btn-ofrecer">🏠</div>
+        </div>
+        <div class="msg" id="msg-swipe"></div>
+      </div>
+    </div>
+
+  </div>
+  <p class="caption">Conectado en vivo a Supabase · datos reales</p>
+</div>
+
+<script>
+const SUPABASE_URL = "https://ewinssavtfbuocnyiaij.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KMXAmnYxvHL1jchLPjrsfg_vWS5m9Mb";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('screen-' + tab.dataset.screen).classList.add('active');
+    if (tab.dataset.screen === 'buscar') iniciarBuscar();
+  });
+});
+
+// ---------- PUBLICAR ----------
+document.getElementById('form-publicar').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('btn-publicar');
+  const msg = document.getElementById('msg-publicar');
+  btn.disabled = true;
+  msg.className = 'msg';
+  msg.textContent = 'Publicando...';
+
+  try {
+    let foto_url = null;
+    const fotoInput = document.getElementById('foto');
+    if (fotoInput.files.length > 0) {
+      const file = fotoInput.files[0];
+      const path = `${Date.now()}_${file.name}`;
+      const { error: uploadError } = await sb.storage.from('fotos-mascotas').upload(path, file);
+      if (uploadError) throw uploadError;
+      const { data: urlData } = sb.storage.from('fotos-mascotas').getPublicUrl(path);
+      foto_url = urlData.publicUrl;
+    }
+
+    const payload = {
+      nombre: document.getElementById('nombre').value,
+      especie: document.getElementById('especie').value,
+      tamano: document.getElementById('tamano').value,
+      edad_aprox: document.getElementById('edad_aprox').value,
+      temperamento: document.getElementById('temperamento').value,
+      necesidades_especiales: document.getElementById('necesidades_especiales').value,
+      duracion_estimada: document.getElementById('duracion_estimada').value,
+      foto_url: foto_url,
+      sector: document.getElementById('sector').value,
+      comuna: document.getElementById('comuna').value,
+      dueno_nombre: document.getElementById('dueno_nombre').value,
+      dueno_email: document.getElementById('dueno_email').value,
+      dueno_telefono: document.getElementById('dueno_telefono').value
+    };
+
+    const { error } = await sb.from('mascotas').insert(payload);
+    if (error) throw error;
+
+    msg.className = 'msg ok';
+    msg.textContent = 'Tu publicación quedó en revisión. Una vez aprobada, ' + payload.nombre + ' será visible para los voluntarios y te avisaremos por correo si alguien se ofrece a alojarla.';
+    document.getElementById('form-publicar').reset();
+  } catch (err) {
+    msg.className = 'msg err';
+    msg.textContent = 'Hubo un problema: ' + (err.message || err);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- BUSCAR / SWIPE ----------
+let stackMascotas = [];
+let indiceActual = 0;
+let anfitrionId = localStorage.getItem('mm_anfitrion_id');
+
+async function iniciarBuscar() {
+  if (anfitrionId) {
+    document.getElementById('anfitrion-gate').style.display = 'none';
+    document.getElementById('swipe-body').style.display = 'block';
+    if (stackMascotas.length === 0) await cargarMascotas();
+  }
+}
+
+document.getElementById('btn-registrar-anfitrion').addEventListener('click', async () => {
+  const msg = document.getElementById('msg-anfitrion');
+  const nombre = document.getElementById('a_nombre').value;
+  const telefono = document.getElementById('a_telefono').value;
+  const email = document.getElementById('a_email').value;
+  const sector = document.getElementById('a_sector').value;
+  if (!nombre || !telefono || !email || !sector) {
+    msg.className = 'msg err';
+    msg.textContent = 'Completa nombre, teléfono, correo y sector.';
+    return;
+  }
+  msg.className = 'msg';
+  msg.textContent = 'Guardando...';
+
+  const payload = {
+    nombre, telefono, email, sector,
+    comuna: document.getElementById('a_comuna').value,
+    tipo_espacio: document.getElementById('a_tipo_espacio').value,
+    tiene_otras_mascotas: document.getElementById('a_otras_mascotas').checked
+  };
+
+  const { data, error } = await sb.from('anfitriones').insert(payload).select().single();
+  if (error) {
+    msg.className = 'msg err';
+    msg.textContent = 'Hubo un problema: ' + error.message;
+    return;
+  }
+  anfitrionId = data.id;
+  localStorage.setItem('mm_anfitrion_id', anfitrionId);
+  document.getElementById('anfitrion-gate').style.display = 'none';
+  document.getElementById('swipe-body').style.display = 'block';
+  await cargarMascotas();
+});
+
+async function cargarMascotas() {
+  const { data, error } = await sb.from('mascotas').select('*').eq('estado', 'disponible').order('creado_en', { ascending: true });
+  if (error) {
+    document.getElementById('card-container').innerHTML = '<div class="empty-state">Hubo un problema cargando las mascotas.</div>';
+    return;
+  }
+  stackMascotas = data;
+  indiceActual = 0;
+  renderCard();
+}
+
+function renderCard() {
+  const container = document.getElementById('card-container');
+  if (indiceActual >= stackMascotas.length) {
+    container.innerHTML = '<div class="empty-state">No hay más mascotas disponibles por ahora. Vuelve más tarde.</div>';
+    document.getElementById('btn-pasar').style.visibility = 'hidden';
+    document.getElementById('btn-ofrecer').style.visibility = 'hidden';
+    return;
+  }
+  document.getElementById('btn-pasar').style.visibility = 'visible';
+  document.getElementById('btn-ofrecer').style.visibility = 'visible';
+
+  const m = stackMascotas[indiceActual];
+  const emoji = m.especie === 'perro' ? '🐕' : (m.especie === 'gato' ? '🐈' : '🐾');
+  const fotoStyle = m.foto_url ? `background-image:url('${m.foto_url}')` : '';
+
+  container.innerHTML = `
+    <div class="tag-card">
+      <div class="tag-photo" style="${fotoStyle}">${m.foto_url ? '' : emoji}</div>
+      <div class="tag-info">
+        <div class="tag-name-row">
+          <span class="tag-name">${m.nombre}</span>
+          <span class="tag-badge">Disponible</span>
+        </div>
+        <div class="tag-facts-list">
+          <div class="fact-row"><span class="fact-label">Tamaño</span><span class="fact-value">${capitalize(m.tamano)}</span></div>
+          <div class="fact-row"><span class="fact-label">Edad</span><span class="fact-value">${m.edad_aprox ? m.edad_aprox : 'No indicada'}</span></div>
+          <div class="fact-row"><span class="fact-label">Sector</span><span class="fact-value">${m.sector}</span></div>
+          <div class="fact-row"><span class="fact-label">Ciudad</span><span class="fact-value">${m.comuna}</span></div>
+          <div class="fact-row"><span class="fact-label">Duración</span><span class="fact-value">${m.duracion_estimada || 'Por definir'}</span></div>
+          ${m.necesidades_especiales ? `<div class="fact-row"><span class="fact-label">Necesidades especiales</span><span class="fact-value">${m.necesidades_especiales}</span></div>` : ''}
+          ${m.temperamento ? `<div class="fact-row"><span class="fact-label">Temperamento</span><span class="fact-value">${m.temperamento}</span></div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function capitalize(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; }
+
+document.getElementById('btn-pasar').addEventListener('click', () => {
+  indiceActual++;
+  renderCard();
+});
+
+document.getElementById('btn-ofrecer').addEventListener('click', async () => {
+  const msg = document.getElementById('msg-swipe');
+  const m = stackMascotas[indiceActual];
+  if (!m) return;
+  msg.className = 'msg';
+  msg.textContent = 'Avisando al dueño...';
+
+  const { error } = await sb.from('contactos').insert({ mascota_id: m.id, anfitrion_id: anfitrionId });
+  if (error) {
+    msg.className = 'msg err';
+    msg.textContent = 'Hubo un problema: ' + error.message;
+    return;
+  }
+  msg.className = 'msg ok';
+  msg.textContent = 'Listo, avisamos al dueño de ' + m.nombre + ' con tus datos.';
+  indiceActual++;
+  renderCard();
+});
+</script>
+</body>
+</html>
