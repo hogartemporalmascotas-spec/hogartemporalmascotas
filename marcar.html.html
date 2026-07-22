@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Marcar como alojada — Mascotas a Salvo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg: #F5F2EC;
+    --ink: #1C2B2A;
+    --ink-soft: #4A5957;
+    --teal: #2B6E6A;
+    --teal-dark: #1E4E4B;
+    --brick: #B8412B;
+    --brick-soft: #F3DFD8;
+    --moss: #4C7A3F;
+    --moss-soft: #E1EBDA;
+    --paper: #FFFFFF;
+    --line: #E1DBCC;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background: var(--bg); font-family:'Inter', sans-serif;
+    color: var(--ink); display:flex; justify-content:center; padding: 32px 16px 60px;
+  }
+  .stage{ width:100%; max-width: 460px; }
+  .stage-head{ text-align:center; margin-bottom:20px; }
+  .stage-head h1{ font-family:'Fraunces', serif; font-weight:600; font-size:22px; margin:0 0 6px; }
+  .frame{
+    background: var(--paper); border-radius: 20px; border: 1px solid var(--line);
+    box-shadow: 0 20px 50px -25px rgba(28,43,42,0.35); overflow:hidden;
+  }
+  .app-bar{ background: var(--teal-dark); color:#fff; padding:16px 20px 14px; }
+  .app-bar .brand{ font-family:'Fraunces', serif; font-size:18px; font-weight:600; }
+  .body-pad{ padding: 24px 20px; }
+  .tag-photo{
+    height:190px; border-radius:14px; background: linear-gradient(135deg, #E7DFC8, #CFE0D6);
+    display:flex; align-items:center; justify-content:center; font-size:44px; background-size:cover; background-position:center;
+    margin-bottom:16px;
+  }
+  .tag-name{ font-family:'Fraunces', serif; font-size:20px; font-weight:600; margin: 0 0 4px; }
+  .tag-meta{ font-size:13px; color: var(--ink-soft); margin-bottom:18px; }
+  .confirm-text{ font-size:14px; line-height:1.6; margin-bottom:20px; }
+  .btn-primary{
+    width:100%; padding:14px; border:none; border-radius:12px; background: var(--teal); color:#fff;
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14px; cursor:pointer;
+  }
+  .btn-primary:disabled{ opacity:.6; cursor:not-allowed; }
+  .btn-secondary{
+    width:100%; padding:12px; border:1px solid var(--line); border-radius:12px; background:#fff; color: var(--ink-soft);
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13px; cursor:pointer; margin-top:10px;
+  }
+  .state-box{ text-align:center; padding: 20px 0; }
+  .state-icon{ font-size:40px; margin-bottom:12px; }
+  .state-title{ font-family:'Fraunces', serif; font-size:19px; font-weight:600; margin-bottom:8px; }
+  .state-desc{ font-size:13px; color: var(--ink-soft); line-height:1.5; }
+  .error-box{ background: var(--brick-soft); color: var(--brick); border-radius:10px; padding:14px; font-size:13px; margin-bottom:16px; }
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="stage-head">
+    <h1>Mascotas a Salvo</h1>
+  </div>
+  <div class="frame">
+    <div class="app-bar"><div class="brand">Marcar como alojada</div></div>
+    <div class="body-pad" id="content">
+      <p style="text-align:center; color:var(--ink-soft); font-size:13px;">Cargando...</p>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://ewinssavtfbuocnyiaij.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KMXAmnYxvHL1jchLPjrsfg_vWS5m9Mb";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const params = new URLSearchParams(window.location.search);
+const mascotaId = params.get('id');
+const token = params.get('token');
+const content = document.getElementById('content');
+
+function renderError(mensaje) {
+  content.innerHTML = `
+    <div class="state-box">
+      <div class="state-icon">⚠️</div>
+      <div class="state-title">No pudimos procesar esto</div>
+      <p class="state-desc">${mensaje}</p>
+    </div>
+  `;
+}
+
+function renderYaAlojada(m) {
+  content.innerHTML = `
+    <div class="state-box">
+      <div class="state-icon">✓</div>
+      <div class="state-title">${m.nombre} ya está marcada como alojada</div>
+      <p class="state-desc">No es necesario hacer nada más.</p>
+    </div>
+  `;
+}
+
+function renderExito(nombre) {
+  content.innerHTML = `
+    <div class="state-box">
+      <div class="state-icon">🎉</div>
+      <div class="state-title">¡Listo! ${nombre} quedó marcada como alojada</div>
+      <p class="state-desc">Ya no va a aparecer disponible para otras personas. Gracias por avisar.</p>
+    </div>
+  `;
+}
+
+function renderConfirmacion(m) {
+  const fotoStyle = m.foto_url ? `background-image:url('${m.foto_url}')` : '';
+  content.innerHTML = `
+    <div class="tag-photo" style="${fotoStyle}"></div>
+    <p class="tag-name">${m.nombre}</p>
+    <p class="tag-meta">${m.sector}, ${m.comuna}</p>
+    <p class="confirm-text">Vas a marcar a <b>${m.nombre}</b> como alojada. Solo confirma esto si ya llegaste a un acuerdo real con la persona que se ofreció a recibirla.</p>
+    <button class="btn-primary" id="btn-confirmar">Sí, marcar como alojada</button>
+    <button class="btn-secondary" id="btn-cancelar">Todavía no, volver</button>
+    <div id="msg" style="text-align:center; font-size:13px; margin-top:12px;"></div>
+  `;
+
+  document.getElementById('btn-cancelar').addEventListener('click', () => {
+    window.location.href = 'https://hogartemporalmascotas.vercel.app/';
+  });
+
+  document.getElementById('btn-confirmar').addEventListener('click', async (e) => {
+    const btn = e.target;
+    btn.disabled = true;
+    btn.textContent = 'Marcando...';
+    const { data, error } = await sb.rpc('marcar_alojada', { p_mascota_id: mascotaId, p_token: token });
+    if (error) {
+      document.getElementById('msg').textContent = 'Hubo un problema: ' + error.message;
+      btn.disabled = false;
+      btn.textContent = 'Sí, marcar como alojada';
+      return;
+    }
+    if (data === true) {
+      renderExito(m.nombre);
+    } else {
+      document.getElementById('msg').textContent = 'El link no es válido o la mascota ya fue actualizada por otra vía.';
+      btn.disabled = false;
+      btn.textContent = 'Sí, marcar como alojada';
+    }
+  });
+}
+
+async function init() {
+  if (!mascotaId || !token) {
+    renderError('Este link no tiene la información necesaria. Verifica que copiaste la URL completa desde el correo.');
+    return;
+  }
+
+  const { data, error } = await sb.from('mascotas').select('*').eq('id', mascotaId).single();
+
+  if (error || !data) {
+    renderError('No encontramos esta mascota. Puede que el link esté mal copiado.');
+    return;
+  }
+
+  if (data.token !== token) {
+    renderError('El link no coincide con esta mascota. Verifica que copiaste la URL completa desde el correo.');
+    return;
+  }
+
+  if (data.estado === 'alojada' || data.estado === 'devuelta') {
+    renderYaAlojada(data);
+    return;
+  }
+
+  renderConfirmacion(data);
+}
+
+init();
+</script>
+</body>
+</html>
