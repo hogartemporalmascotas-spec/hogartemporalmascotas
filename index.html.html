@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mascotas Match — Coquimbo / La Serena</title>
+<title>Mascotas a Salvo — Atacama / Coquimbo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -29,6 +29,7 @@
   .stage{ width:100%; max-width: 460px; }
   .stage-head{ text-align:center; margin-bottom:20px; }
   .stage-head h1{ font-family:'Fraunces', serif; font-weight:600; font-size:22px; margin:0 0 6px; }
+  .stage-head .stage-desc{ font-size:13px; color: var(--ink-soft); line-height:1.5; margin: 0 0 10px; max-width: 380px; margin-left:auto; margin-right:auto; }
   .stage-head .loc{
     font-family:'Space Grotesk', sans-serif; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
     color: var(--teal-dark); background: var(--moss-soft); padding:5px 10px; border-radius:20px;
@@ -93,7 +94,8 @@
 <body>
 <div class="stage">
   <div class="stage-head">
-    <h1>Mascotas Match</h1>
+    <h1>Mascotas a Salvo</h1>
+    <p class="stage-desc">Conecta mascotas afectadas por la emergencia en Atacama y Coquimbo con familias dispuestas a brindar refugio temporal</p>
     <span class="loc">Atacama (Huasco) · Región de Coquimbo · Emergencia temporal</span>
   </div>
 
@@ -219,6 +221,7 @@
         <p style="font-size:13px; color:var(--ink-soft); margin-top:0;">Antes de ver las mascotas, cuéntanos un poco de ti — así el dueño sabe con quién se contacta.</p>
         <div class="field"><label>Tu nombre</label><input type="text" id="a_nombre" required></div>
         <div class="field"><label>Tu teléfono</label><input type="text" id="a_telefono" required placeholder="+56 9 ..."></div>
+        <div class="field"><label>Tu correo</label><input type="email" id="a_email" required placeholder="tucorreo@gmail.com"></div>
         <div class="row2">
           <div class="field"><label>Sector</label><input type="text" id="a_sector" required></div>
           <div class="field"><label>Comuna</label>
@@ -334,7 +337,7 @@ document.getElementById('form-publicar').addEventListener('submit', async (e) =>
     if (error) throw error;
 
     msg.className = 'msg ok';
-    msg.textContent = '¡Publicado! Te avisaremos por correo cuando alguien se ofrezca a alojar a ' + payload.nombre + '.';
+    msg.textContent = 'Tu publicación quedó en revisión. Una vez aprobada, ' + payload.nombre + ' será visible para los voluntarios y te avisaremos por correo si alguien se ofrece a alojarla.';
     document.getElementById('form-publicar').reset();
   } catch (err) {
     msg.className = 'msg err';
@@ -361,17 +364,18 @@ document.getElementById('btn-registrar-anfitrion').addEventListener('click', asy
   const msg = document.getElementById('msg-anfitrion');
   const nombre = document.getElementById('a_nombre').value;
   const telefono = document.getElementById('a_telefono').value;
+  const email = document.getElementById('a_email').value;
   const sector = document.getElementById('a_sector').value;
-  if (!nombre || !telefono || !sector) {
+  if (!nombre || !telefono || !email || !sector) {
     msg.className = 'msg err';
-    msg.textContent = 'Completa nombre, teléfono y sector.';
+    msg.textContent = 'Completa nombre, teléfono, correo y sector.';
     return;
   }
   msg.className = 'msg';
   msg.textContent = 'Guardando...';
 
   const payload = {
-    nombre, telefono, sector,
+    nombre, telefono, email, sector,
     comuna: document.getElementById('a_comuna').value,
     tipo_espacio: document.getElementById('a_tipo_espacio').value,
     tiene_otras_mascotas: document.getElementById('a_otras_mascotas').checked
