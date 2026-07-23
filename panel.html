@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
 <style>
   :root{
     --bg: #F5F2EC; --ink: #1C2B2A; --ink-soft: #4A5957;
@@ -43,6 +44,21 @@
   .btn-sm.approve{ background: var(--moss); border-color: var(--moss); color:#fff; }
   .btn-sm.danger{ background: var(--brick); border-color: var(--brick); color:#fff; }
   .empty{ text-align:center; color: var(--ink-soft); font-size:13px; padding: 40px 0; }
+
+  .kpi-row{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:20px; }
+  .kpi-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px 18px; }
+  .kpi-label{ font-family:'Space Grotesk', sans-serif; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; color: var(--ink-soft); margin-bottom:4px; }
+  .kpi-value{ font-family:'Fraunces', serif; font-size:26px; font-weight:600; }
+  .chart-row{ display:grid; grid-template-columns: 1.3fr 1fr; gap:16px; margin-bottom:16px; }
+  @media (max-width: 800px){ .chart-row{ grid-template-columns: 1fr; } }
+  .chart-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .chart-card h3{ font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600; color: var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin: 0 0 14px; }
+  .chart-card canvas{ max-height: 240px; }
+  .table-card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; overflow-x:auto; margin-bottom:16px; }
+  .table-card table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .table-card th{ text-align:left; padding:8px 10px; color: var(--ink-soft); font-family:'Space Grotesk', sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:.03em; border-bottom:2px solid var(--line); }
+  .table-card td{ padding:8px 10px; border-bottom:1px solid var(--line); }
+  .refresh-btn{ font-family:'Space Grotesk', sans-serif; font-size:12px; font-weight:600; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; color:var(--ink-soft); margin-bottom:16px; }
 </style>
 </head>
 <body>
@@ -61,6 +77,7 @@
   <div class="tabs">
     <button class="vista-tab active" data-vista="mascotas">Mascotas</button>
     <button class="vista-tab" data-vista="interacciones">Interacciones</button>
+    <button class="vista-tab" data-vista="estadisticas">Estadísticas</button>
   </div>
 
   <div id="vista-mascotas">
@@ -77,6 +94,43 @@
   <div id="vista-interacciones" style="display:none;">
     <p class="sub">Cada vez que alguien ofrece hogar, aparece aquí — con los datos de ambas partes para que puedas hacer seguimiento.</p>
     <div id="lista-interacciones"></div>
+  </div>
+
+  <div id="vista-estadisticas" style="display:none;">
+    <button class="refresh-btn" id="btn-refresh-stats">↻ Actualizar</button>
+    <p class="sub" id="ultima-actualizacion">Cargando...</p>
+
+    <div class="kpi-row" id="kpis"></div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>Publicaciones por día</h3>
+        <canvas id="chart-timeline"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Mascotas por estado</h3>
+        <canvas id="chart-estado"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-row">
+      <div class="chart-card">
+        <h3>Mascotas por comuna</h3>
+        <canvas id="chart-comuna"></canvas>
+      </div>
+      <div class="chart-card">
+        <h3>Interacciones (swipes) por día</h3>
+        <canvas id="chart-interacciones"></canvas>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <h3 style="font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600; color:var(--ink-soft); text-transform:uppercase; margin:0 0 14px;">Últimas publicaciones</h3>
+      <table>
+        <thead><tr><th>Mascota</th><th>Estado</th><th>Comuna</th><th>Publicada</th></tr></thead>
+        <tbody id="tabla-recientes"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -124,14 +178,19 @@ document.querySelectorAll('.vista-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.vista-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
+    document.getElementById('vista-mascotas').style.display = 'none';
+    document.getElementById('vista-interacciones').style.display = 'none';
+    document.getElementById('vista-estadisticas').style.display = 'none';
+
     if (tab.dataset.vista === 'mascotas') {
       document.getElementById('vista-mascotas').style.display = 'block';
-      document.getElementById('vista-interacciones').style.display = 'none';
       cargarLista();
-    } else {
-      document.getElementById('vista-mascotas').style.display = 'none';
+    } else if (tab.dataset.vista === 'interacciones') {
       document.getElementById('vista-interacciones').style.display = 'block';
       cargarInteracciones();
+    } else {
+      document.getElementById('vista-estadisticas').style.display = 'block';
+      cargarDashboard();
     }
   });
 });
@@ -251,6 +310,105 @@ async function cargarLista() {
       cargarLista();
     });
   });
+}
+
+const COLORS_DASH = { pendiente_revision: '#C9A227', disponible: '#4C7A3F', alojada: '#B8412B', devuelta: '#999999' };
+const LABELS_DASH = { pendiente_revision: 'Pendiente', disponible: 'Disponible', alojada: 'Alojada', devuelta: 'Devuelta' };
+let dashCharts = {};
+
+function destroyDashChart(id) {
+  if (dashCharts[id]) { dashCharts[id].destroy(); }
+}
+
+function agruparPorDia(fechas) {
+  const conteo = {};
+  fechas.forEach(f => {
+    const dia = f.slice(0, 10);
+    conteo[dia] = (conteo[dia] || 0) + 1;
+  });
+  const dias = Object.keys(conteo).sort();
+  return { labels: dias, valores: dias.map(d => conteo[d]) };
+}
+
+document.getElementById('btn-refresh-stats').addEventListener('click', cargarDashboard);
+
+async function cargarDashboard() {
+  document.getElementById('ultima-actualizacion').textContent = 'Cargando...';
+
+  const [mascotasRes, contactosRes] = await Promise.all([
+    sb.from('mascotas').select('id, nombre, estado, comuna, creado_en').order('creado_en', { ascending: false }),
+    sb.from('contactos').select('id, creado_en')
+  ]);
+
+  if (mascotasRes.error) {
+    document.getElementById('ultima-actualizacion').textContent = 'Error cargando datos.';
+    return;
+  }
+
+  const mascotas = mascotasRes.data;
+  const contactos = contactosRes.data || [];
+
+  const total = mascotas.length;
+  const porEstado = { pendiente_revision: 0, disponible: 0, alojada: 0, devuelta: 0 };
+  mascotas.forEach(m => { if (porEstado[m.estado] !== undefined) porEstado[m.estado]++; });
+
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Total publicadas</div><div class="kpi-value">${total}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pendientes</div><div class="kpi-value">${porEstado.pendiente_revision}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Disponibles</div><div class="kpi-value">${porEstado.disponible}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Alojadas</div><div class="kpi-value">${porEstado.alojada}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Interacciones</div><div class="kpi-value">${contactos.length}</div></div>
+  `;
+
+  const timeline = agruparPorDia(mascotas.map(m => m.creado_en));
+  destroyDashChart('timeline');
+  dashCharts.timeline = new Chart(document.getElementById('chart-timeline'), {
+    type: 'line',
+    data: { labels: timeline.labels, datasets: [{ label: 'Publicaciones', data: timeline.valores, borderColor: '#2B6E6A', backgroundColor: '#2B6E6A20', fill: true, tension: 0.3 }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  destroyDashChart('estado');
+  const estadosConDatos = Object.keys(porEstado).filter(k => porEstado[k] > 0);
+  dashCharts.estado = new Chart(document.getElementById('chart-estado'), {
+    type: 'doughnut',
+    data: { labels: estadosConDatos.map(k => LABELS_DASH[k]), datasets: [{ data: estadosConDatos.map(k => porEstado[k]), backgroundColor: estadosConDatos.map(k => COLORS_DASH[k]) }] },
+    options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+  });
+
+  const porComuna = {};
+  mascotas.forEach(m => { porComuna[m.comuna] = (porComuna[m.comuna] || 0) + 1; });
+  const comunas = Object.keys(porComuna).sort((a, b) => porComuna[b] - porComuna[a]);
+  destroyDashChart('comuna');
+  dashCharts.comuna = new Chart(document.getElementById('chart-comuna'), {
+    type: 'bar',
+    data: { labels: comunas, datasets: [{ label: 'Mascotas', data: comunas.map(c => porComuna[c]), backgroundColor: '#2B6E6A' }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  const interTimeline = agruparPorDia(contactos.map(c => c.creado_en));
+  destroyDashChart('interacciones');
+  dashCharts.interacciones = new Chart(document.getElementById('chart-interacciones'), {
+    type: 'bar',
+    data: { labels: interTimeline.labels, datasets: [{ label: 'Interacciones', data: interTimeline.valores, backgroundColor: '#B8412B' }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  const tablaRecientes = document.getElementById('tabla-recientes');
+  if (mascotas.length === 0) {
+    tablaRecientes.innerHTML = '<tr><td colspan="4" class="empty">Todavía no hay publicaciones.</td></tr>';
+  } else {
+    tablaRecientes.innerHTML = mascotas.slice(0, 15).map(m => `
+      <tr>
+        <td>${m.nombre}</td>
+        <td><span class="card-badge ${badgeClass(m.estado)}">${LABELS_DASH[m.estado] || m.estado}</span></td>
+        <td>${m.comuna}</td>
+        <td>${new Date(m.creado_en).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' })}</td>
+      </tr>
+    `).join('');
+  }
+
+  document.getElementById('ultima-actualizacion').textContent = 'Actualizado: ' + new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 }
 </script>
 </body>
