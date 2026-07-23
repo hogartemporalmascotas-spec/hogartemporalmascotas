@@ -335,9 +335,10 @@ document.getElementById('btn-refresh-stats').addEventListener('click', cargarDas
 async function cargarDashboard() {
   document.getElementById('ultima-actualizacion').textContent = 'Cargando...';
 
-  const [mascotasRes, contactosRes] = await Promise.all([
+  const [mascotasRes, contactosRes, anfitrionesRes] = await Promise.all([
     sb.from('mascotas').select('id, nombre, estado, comuna, creado_en').order('creado_en', { ascending: false }),
-    sb.from('contactos').select('id, creado_en')
+    sb.from('contactos').select('id, creado_en'),
+    sb.from('anfitriones').select('id, creado_en')
   ]);
 
   if (mascotasRes.error) {
@@ -347,6 +348,11 @@ async function cargarDashboard() {
 
   const mascotas = mascotasRes.data;
   const contactos = contactosRes.data || [];
+  const anfitriones = anfitrionesRes.data || [];
+
+  const ahora = new Date();
+  const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 1, 0);
+  const nuevosAnfitrionesHoy = anfitriones.filter(a => new Date(a.creado_en) >= inicioHoy).length;
 
   const total = mascotas.length;
   const porEstado = { pendiente_revision: 0, disponible: 0, alojada: 0, devuelta: 0 };
@@ -358,6 +364,7 @@ async function cargarDashboard() {
     <div class="kpi-card"><div class="kpi-label">Disponibles</div><div class="kpi-value">${porEstado.disponible}</div></div>
     <div class="kpi-card"><div class="kpi-label">Alojadas</div><div class="kpi-value">${porEstado.alojada}</div></div>
     <div class="kpi-card"><div class="kpi-label">Interacciones</div><div class="kpi-value">${contactos.length}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Nuevos anfitriones hoy</div><div class="kpi-value">${nuevosAnfitrionesHoy}</div></div>
   `;
 
   const timeline = agruparPorDia(mascotas.map(m => m.creado_en));
