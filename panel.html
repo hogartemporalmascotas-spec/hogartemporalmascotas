@@ -59,14 +59,25 @@
   <p class="sub">Revisa, aprueba y gestiona publicaciones</p>
 
   <div class="tabs">
-    <button class="tab active" data-estado="pendiente_revision">Pendientes</button>
-    <button class="tab" data-estado="disponible">Disponibles</button>
-    <button class="tab" data-estado="alojada">Alojadas</button>
-    <button class="tab" data-estado="devuelta">Devueltas</button>
-    <button class="tab" data-estado="todas">Todas</button>
+    <button class="vista-tab active" data-vista="mascotas">Mascotas</button>
+    <button class="vista-tab" data-vista="interacciones">Interacciones</button>
   </div>
 
-  <div id="lista"></div>
+  <div id="vista-mascotas">
+    <div class="tabs">
+      <button class="tab active" data-estado="pendiente_revision">Pendientes</button>
+      <button class="tab" data-estado="disponible">Disponibles</button>
+      <button class="tab" data-estado="alojada">Alojadas</button>
+      <button class="tab" data-estado="devuelta">Devueltas</button>
+      <button class="tab" data-estado="todas">Todas</button>
+    </div>
+    <div id="lista"></div>
+  </div>
+
+  <div id="vista-interacciones" style="display:none;">
+    <p class="sub">Cada vez que alguien ofrece hogar, aparece aquí — con los datos de ambas partes para que puedas hacer seguimiento.</p>
+    <div id="lista-interacciones"></div>
+  </div>
 </div>
 
 <script>
@@ -108,6 +119,69 @@ document.querySelectorAll('.tab').forEach(tab => {
     cargarLista();
   });
 });
+
+document.querySelectorAll('.vista-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.vista-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    if (tab.dataset.vista === 'mascotas') {
+      document.getElementById('vista-mascotas').style.display = 'block';
+      document.getElementById('vista-interacciones').style.display = 'none';
+      cargarLista();
+    } else {
+      document.getElementById('vista-mascotas').style.display = 'none';
+      document.getElementById('vista-interacciones').style.display = 'block';
+      cargarInteracciones();
+    }
+  });
+});
+
+async function cargarInteracciones() {
+  const cont = document.getElementById('lista-interacciones');
+  cont.innerHTML = '<p class="empty">Cargando...</p>';
+
+  const { data, error } = await sb
+    .from('contactos')
+    .select('*, mascotas(nombre, dueno_nombre, dueno_email, dueno_telefono, sector, comuna), anfitriones(nombre, telefono, email, sector, comuna)')
+    .order('creado_en', { ascending: false });
+
+  if (error) {
+    cont.innerHTML = '<p class="empty">Error cargando interacciones.</p>';
+    return;
+  }
+  if (data.length === 0) {
+    cont.innerHTML = '<p class="empty">Todavía no hay interacciones registradas.</p>';
+    return;
+  }
+
+  cont.innerHTML = data.map(c => {
+    const m = c.mascotas || {};
+    const a = c.anfitriones || {};
+    const fecha = new Date(c.creado_en).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
+    const estadoCorreo = c.correos_enviados
+      ? '<span class="card-badge badge-disponible">Correos enviados</span>'
+      : '<span class="card-badge badge-pendiente">Correo pendiente</span>';
+    return `
+      <div class="card" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+          <div class="card-name">${m.nombre || '(mascota eliminada)'}</div>
+          ${estadoCorreo}
+        </div>
+        <div class="card-meta">${fecha}</div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px;">
+          <div style="flex:1; min-width:200px;">
+            <div class="card-meta" style="font-weight:600; color:var(--ink);">Dueño (damnificado)</div>
+            <div class="card-desc">${m.dueno_nombre || '-'}<br>${m.dueno_email || '-'}<br>${m.dueno_telefono || 'sin teléfono'}<br>${m.sector || ''}, ${m.comuna || ''}</div>
+          </div>
+          <div style="flex:1; min-width:200px;">
+            <div class="card-meta" style="font-weight:600; color:var(--ink);">Anfitrión (voluntario)</div>
+            <div class="card-desc">${a.nombre || '-'}<br>${a.email || '-'}<br>${a.telefono || '-'}<br>${a.sector || ''}, ${a.comuna || ''}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
 
 function badgeClass(estado) {
   if (estado === 'pendiente_revision') return 'badge-pendiente';
