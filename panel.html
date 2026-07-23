@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es-CL">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel — Mascotas a Salvo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root{
+    --bg: #F5F2EC; --ink: #1C2B2A; --ink-soft: #4A5957;
+    --teal: #2B6E6A; --teal-dark: #1E4E4B; --brick: #B8412B; --brick-soft: #F3DFD8;
+    --moss: #4C7A3F; --moss-soft: #E1EBDA; --paper: #FFFFFF; --line: #E1DBCC;
+  }
+  *{box-sizing:border-box;}
+  body{ margin:0; background: var(--bg); font-family:'Inter', sans-serif; color: var(--ink); padding: 24px 16px 60px; }
+  .stage{ max-width: 900px; margin: 0 auto; }
+  h1{ font-family:'Fraunces', serif; font-weight:600; font-size:24px; margin: 0 0 4px; }
+  .sub{ color: var(--ink-soft); font-size:13px; margin-bottom:20px; }
+
+  .gate{ max-width: 360px; margin: 60px auto; background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px; }
+  .gate input{ width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14px; margin: 10px 0; }
+  .gate button{ width:100%; padding:12px; border:none; border-radius:10px; background: var(--teal); color:#fff; font-family:'Space Grotesk', sans-serif; font-weight:600; cursor:pointer; }
+
+  .tabs{ display:flex; gap:8px; margin-bottom:18px; }
+  .tab{ font-family:'Space Grotesk', sans-serif; font-size:13px; font-weight:600; padding:8px 14px; border-radius:8px; border:1px solid var(--line); background:#fff; color: var(--ink-soft); cursor:pointer; }
+  .tab.active{ background: var(--teal); border-color: var(--teal); color:#fff; }
+
+  .card{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px; display:flex; gap:14px; }
+  .card img{ width:80px; height:80px; border-radius:10px; object-fit:cover; background:#eee; flex-shrink:0; }
+  .card-info{ flex:1; min-width:0; }
+  .card-name{ font-family:'Fraunces', serif; font-size:17px; font-weight:600; }
+  .card-meta{ font-size:12.5px; color: var(--ink-soft); margin: 2px 0 6px; }
+  .card-badge{ display:inline-block; font-family:'Space Grotesk', sans-serif; font-size:10.5px; font-weight:600; padding:3px 8px; border-radius:20px; margin-bottom:6px; }
+  .badge-pendiente{ background:#FDECC8; color:#8A6116; }
+  .badge-disponible{ background: var(--moss-soft); color: var(--moss); }
+  .badge-alojada{ background: var(--brick-soft); color: var(--brick); }
+  .badge-devuelta{ background:#E4E4E4; color:#666; }
+  .card-desc{ font-size:12.5px; color: var(--ink); margin-bottom:8px; }
+  .card-actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .btn-sm{ font-family:'Space Grotesk', sans-serif; font-size:11.5px; font-weight:600; padding:6px 10px; border-radius:8px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  .btn-sm.approve{ background: var(--moss); border-color: var(--moss); color:#fff; }
+  .btn-sm.danger{ background: var(--brick); border-color: var(--brick); color:#fff; }
+  .empty{ text-align:center; color: var(--ink-soft); font-size:13px; padding: 40px 0; }
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <h1 style="text-align:center; font-size:18px;">Panel Mascotas a Salvo</h1>
+  <input type="password" id="clave" placeholder="Clave de administrador">
+  <button id="btn-entrar">Entrar</button>
+  <p id="gate-msg" style="color:var(--brick); font-size:12px; text-align:center;"></p>
+</div>
+
+<div class="stage" id="panel" style="display:none;">
+  <h1>Panel de mascotas</h1>
+  <p class="sub">Revisa, aprueba y gestiona publicaciones</p>
+
+  <div class="tabs">
+    <button class="tab active" data-estado="pendiente_revision">Pendientes</button>
+    <button class="tab" data-estado="disponible">Disponibles</button>
+    <button class="tab" data-estado="alojada">Alojadas</button>
+    <button class="tab" data-estado="devuelta">Devueltas</button>
+    <button class="tab" data-estado="todas">Todas</button>
+  </div>
+
+  <div id="lista"></div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://ewinssavtfbuocnyiaij.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KMXAmnYxvHL1jchLPjrsfg_vWS5m9Mb";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let clave = '';
+let estadoActual = 'pendiente_revision';
+
+document.getElementById('btn-entrar').addEventListener('click', async () => {
+  const intento = document.getElementById('clave').value;
+  const msg = document.getElementById('gate-msg');
+  msg.textContent = 'Verificando...';
+
+  // Probamos la clave contra una función real (sin efecto real si es dummy)
+  const { error } = await sb.rpc('admin_actualizar_estado', {
+    p_mascota_id: '00000000-0000-0000-0000-000000000000',
+    p_nuevo_estado: 'disponible',
+    p_clave: intento
+  });
+
+  if (error && error.message.includes('Clave incorrecta')) {
+    msg.textContent = 'Clave incorrecta.';
+    return;
+  }
+
+  clave = intento;
+  document.getElementById('gate').style.display = 'none';
+  document.getElementById('panel').style.display = 'block';
+  cargarLista();
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    estadoActual = tab.dataset.estado;
+    cargarLista();
+  });
+});
+
+function badgeClass(estado) {
+  if (estado === 'pendiente_revision') return 'badge-pendiente';
+  if (estado === 'disponible') return 'badge-disponible';
+  if (estado === 'alojada') return 'badge-alojada';
+  return 'badge-devuelta';
+}
+
+function badgeLabel(estado) {
+  if (estado === 'pendiente_revision') return 'Pendiente';
+  if (estado === 'disponible') return 'Disponible';
+  if (estado === 'alojada') return 'Alojada';
+  return 'Devuelta';
+}
+
+async function cargarLista() {
+  const lista = document.getElementById('lista');
+  lista.innerHTML = '<p class="empty">Cargando...</p>';
+
+  let query = sb.from('mascotas').select('*').order('creado_en', { ascending: false });
+  if (estadoActual !== 'todas') query = query.eq('estado', estadoActual);
+
+  const { data, error } = await query;
+  if (error) {
+    lista.innerHTML = '<p class="empty">Error cargando datos.</p>';
+    return;
+  }
+  if (data.length === 0) {
+    lista.innerHTML = '<p class="empty">No hay mascotas en este estado.</p>';
+    return;
+  }
+
+  lista.innerHTML = data.map(m => `
+    <div class="card" data-id="${m.id}">
+      <img src="${m.foto_url || ''}" onerror="this.style.visibility='hidden'">
+      <div class="card-info">
+        <span class="card-badge ${badgeClass(m.estado)}">${badgeLabel(m.estado)}</span>
+        <div class="card-name">${m.nombre}</div>
+        <div class="card-meta">${m.especie} · ${m.tamano} · ${m.sector}, ${m.comuna}</div>
+        <div class="card-desc">${m.necesidades_especiales || m.temperamento || ''}</div>
+        <div class="card-desc" style="color:var(--ink-soft);">Dueño: ${m.dueno_nombre} · ${m.dueno_email} · ${m.dueno_telefono || 'sin teléfono'}</div>
+        <div class="card-actions">
+          ${m.estado === 'pendiente_revision' ? `<button class="btn-sm approve" data-action="aprobar">Aprobar</button>` : ''}
+          ${m.estado === 'disponible' ? `<button class="btn-sm" data-action="marcar_alojada">Marcar alojada</button>` : ''}
+          ${m.estado === 'alojada' ? `<button class="btn-sm" data-action="marcar_devuelta">Marcar devuelta</button>` : ''}
+          ${m.estado !== 'disponible' ? `<button class="btn-sm" data-action="reabrir">Reabrir (disponible)</button>` : ''}
+          <button class="btn-sm danger" data-action="eliminar">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.btn-sm').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const card = e.target.closest('.card');
+      const id = card.dataset.id;
+      const action = e.target.dataset.action;
+      e.target.disabled = true;
+
+      if (action === 'eliminar') {
+        if (!confirm('¿Eliminar esta publicación permanentemente?')) { e.target.disabled = false; return; }
+        await sb.rpc('admin_eliminar_mascota', { p_mascota_id: id, p_clave: clave });
+      } else {
+        const mapa = { aprobar: 'disponible', marcar_alojada: 'alojada', marcar_devuelta: 'devuelta', reabrir: 'disponible' };
+        await sb.rpc('admin_actualizar_estado', { p_mascota_id: id, p_nuevo_estado: mapa[action], p_clave: clave });
+      }
+      cargarLista();
+    });
+  });
+}
+</script>
+</body>
+</html>
